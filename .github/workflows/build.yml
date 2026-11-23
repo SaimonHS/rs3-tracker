@@ -1,0 +1,52 @@
+name: Build app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease 2>&1 | tee build.log
+
+      - name: Publish it under Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk RS-Tracker.apk
+          gh release create "build-${{ github.run_number }}" RS-Tracker.apk \
+            --title "RS Tracker (build ${{ github.run_number }})" \
+            --notes "On your Android phone: tap RS-Tracker.apk below, then open the download to install it." \
+            --latest
+
+      - name: Keep the build log
+        if: always()
+        run: |
+          mkdir -p /tmp/ci && cd /tmp/ci
+          cp "$GITHUB_WORKSPACE/build.log" . 2>/dev/null || echo "no build log" > build.log
+          echo "${{ job.status }} build ${{ github.run_number }} ${{ github.sha }}" > status.txt
+          git init -q -b ci-logs
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "build ${{ github.run_number }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-logs
