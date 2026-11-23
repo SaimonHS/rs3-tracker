@@ -58,7 +58,7 @@ public final class TrackerService extends Service {
     private final Follow follow = new Follow();
     private long lastProcessed, lastFind, runawaySince;
     private int[] rect, pending;
-    private int pendingHits;
+    private int pendingHits, invalidChecks;
 
     // shared state
     volatile boolean tracking;
@@ -246,6 +246,8 @@ public final class TrackerService extends Service {
         }
         if (old != null) old.close();
         rect = null;
+        pending = null;
+        invalidChecks = 0;
     }
 
     private void onImage(ImageReader r) {
@@ -382,7 +384,10 @@ public final class TrackerService extends Service {
         }
     }
 
-    /** Where is the camera picture on screen? Re-checked every 0.7 s; needs two votes to move. */
+    /**
+     * Where is the camera picture on screen? Checked every 0.7 s. Once found it stays put while it
+     * still looks like a picture, so a notification sliding over it doesn't move it.
+     */
     private void findPicture(int w, int h) {
         int sw = 96, sh = Math.max(16, Math.round(h * 96f / w));
         if (small == null || small.getWidth() != sw || small.getHeight() != sh) {
@@ -392,20 +397,31 @@ public final class TrackerService extends Service {
         int[] px = new int[sw * sh];
         small.getPixels(px, 0, sw, 0, 0, sw, sh);
         int[] f = LiveViewFinder.find(px, sw, sh);
-        if (f == null) return;
-        int[] c = {f[0] * w / sw, f[1] * h / sh, f[2] * w / sw, f[3] * h / sh};
-        if (rect == null) {
+        int[] c = f == null ? null : new int[]{f[0] * w / sw, f[1] * h / sh, f[2] * w / sw, f[3] * h / sh};
+        if (rect != null) {
+            int[] inSmall = {rect[0] * sw / w, rect[1] * sh / h, rect[2] * sw / w, rect[3] * sh / h};
+            if (LiveViewFinder.litFraction(px, sw, sh, inSmall) >= 0.5f) {
+                invalidChecks = 0;
+                pending = null;
+                if (c != null && iou(rect, c) > 0.85f) {
+                    int[] b = new int[4];
+                    for (int k = 0; k < 4; k++) b[k] = Math.round(rect[k] * 0.8f + c[k] * 0.2f);
+                    rect = b;
+                }
+                return;
+            }
+            if (++invalidChecks < 3) return;
+        }
+        if (c == null) return;
+        if (rect == null && pending == null) {
             rect = c;
-            pending = null;
-        } else if (iou(rect, c) > 0.85f) {
-            int[] b = new int[4];
-            for (int k = 0; k < 4; k++) b[k] = Math.round(rect[k] * 0.7f + c[k] * 0.3f);
-            rect = b;
-            pending = null;
-        } else if (pending != null && iou(pending, c) > 0.85f) {
+            return;
+        }
+        if (pending != null && iou(pending, c) > 0.85f) {
             if (++pendingHits >= 2) {
                 rect = c;
                 pending = null;
+                invalidChecks = 0;
                 follow.box = null;
             }
         } else {

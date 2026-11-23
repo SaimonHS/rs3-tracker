@@ -38,6 +38,20 @@ public final class LiveViewFinder {
         return new int[]{rx[0], ry[0], rx[1], ry[1]};
     }
 
+    /** Share of non-black pixels inside r = {left, top, right, bottom}. */
+    public static float litFraction(int[] px, int w, int h, int[] r) {
+        int x0 = Math.max(0, r[0]), y0 = Math.max(0, r[1]), x1 = Math.min(w, r[2]), y1 = Math.min(h, r[3]);
+        if (x1 <= x0 || y1 <= y0) return 0f;
+        int n = 0;
+        for (int y = y0; y < y1; y++) {
+            for (int x = x0; x < x1; x++) {
+                int c = px[y * w + x];
+                if (((c >> 16) & 0xFF) * 3 + ((c >> 8) & 0xFF) * 6 + (c & 0xFF) > 140) n++;
+            }
+        }
+        return n / (float) ((x1 - x0) * (y1 - y0));
+    }
+
     /** Longest stretch of values >= th, allowing gaps of up to `gap`. Returns {start, endExclusive}. */
     static int[] run(float[] a, float th, int gap) {
         int bestStart = -1, bestEnd = -1, start = -1, lastGood = -1;

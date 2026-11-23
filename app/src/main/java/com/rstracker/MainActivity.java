@@ -388,6 +388,15 @@ public final class MainActivity extends Activity implements Gimbal.Listener {
                 return;
             }
             dialog.show();
+            handler.postDelayed(() -> {
+                if (!dialog.isShowing()) return;
+                boolean any = false;
+                for (String n : names) {
+                    String u = n.toUpperCase(Locale.ROOT);
+                    if (u.contains("DJI") || u.startsWith("RS") || u.contains("RONIN")) any = true;
+                }
+                if (!any) dialog.setTitle("No gimbal yet. Close the Ronin app and restart the gimbal");
+            }, 8000);
         });
     }
 

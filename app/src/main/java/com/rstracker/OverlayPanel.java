@@ -33,7 +33,8 @@ final class OverlayPanel {
         root = new LinearLayout(s);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(12), dp(6), dp(10), dp(10));
-        GradientDrawable bg = Ui.round(0xEE151517, dp(20));
+        // Opaque and nearly black, so a screenshot never mistakes the panel for camera picture.
+        GradientDrawable bg = Ui.round(0xFF0B0B0C, dp(20));
         bg.setStroke(dp(1), 0x30FFFFFF);
         root.setBackground(bg);
         root.setMinimumWidth(dp(240));
@@ -93,7 +94,7 @@ final class OverlayPanel {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.TOP | Gravity.START;
         int screenH = s.getResources().getDisplayMetrics().heightPixels;

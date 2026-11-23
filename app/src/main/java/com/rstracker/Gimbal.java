@@ -219,7 +219,7 @@ public final class Gimbal {
             }, d);
         } else {
             wanted = false;
-            if (error.isEmpty()) error = "Lost the gimbal";
+            if (error.isEmpty()) error = "Couldn't reach the gimbal. Close the Ronin app, then tap Find gimbal.";
             setState(State.OFF);
         }
     }
